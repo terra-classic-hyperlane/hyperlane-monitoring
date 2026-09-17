@@ -94,7 +94,7 @@ export async function routeStatuses(chains: Record<ChainName, ChainInfo>): Promi
 
   // One LCD search gives TC -> remote dispatches AND remote -> TC deliveries.
   const activity: Promise<MailboxActivity> = withTimeout(
-    recentMailboxActivity(tc, 40),
+    recentMailboxActivity(tc, 80),
     25_000,
     'Terra Classic tx search',
   );

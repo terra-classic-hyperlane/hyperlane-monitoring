@@ -43,7 +43,7 @@ function RouteCard({
         <p className="text-xs text-muted">{route.note}</p>
       ) : (
         <ul className="divide-y divide-white/5 text-xs">
-          {route.recent.slice(0, 5).map((m) => (
+          {route.recent.slice(0, 10).map((m) => (
             <li key={m.id} className="flex items-center justify-between gap-2 py-1.5">
               <a
                 href={`${SITE.explorerUrl}/message/${m.id}`}

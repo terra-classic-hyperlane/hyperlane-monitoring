@@ -53,7 +53,7 @@ export const METRICS_AUTH_HEADER = process.env.METRICS_AUTH_HEADER; // e.g. "Bea
 // Relayer health windows
 export const PENDING_WARN_MINUTES = Number(process.env.PENDING_WARN_MINUTES || 20);
 export const PENDING_DOWN_MINUTES = Number(process.env.PENDING_DOWN_MINUTES || 90);
-export const RECENT_MESSAGES = Number(process.env.RECENT_MESSAGES || 8);
+export const RECENT_MESSAGES = Number(process.env.RECENT_MESSAGES || 10);
 // How far back to look for dispatches on EVM origins (blocks). ~7h on BSC (3s), ~10h on ETH (12s).
 // Public RPCs cap eth_getLogs ranges, so the window is scanned in parallel chunks.
 export const EVM_LOOKBACK_BLOCKS: Record<string, number> = {
@@ -62,7 +62,7 @@ export const EVM_LOOKBACK_BLOCKS: Record<string, number> = {
 };
 export const EVM_LOGS_CHUNK = Number(process.env.EVM_LOGS_CHUNK || 2000);
 // Solana: signatures inspected per warp program (each costs a getTransaction call).
-export const SOLANA_SIGS_PER_PROGRAM = Number(process.env.SOLANA_SIGS_PER_PROGRAM || 3);
+export const SOLANA_SIGS_PER_PROGRAM = Number(process.env.SOLANA_SIGS_PER_PROGRAM || 5);
 
 // Validator sync tolerance: a validator is "synced" when its latest signed index is within
 // this many checkpoints of the origin merkle tree (count - 1).
