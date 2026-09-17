@@ -45,6 +45,23 @@ All variables are optional — see `.env.example`. The ones that matter in produ
 
 ## Deploy
 
+### EasyPanel (Nixpacks)
+
+The repo ships a `nixpacks.toml`, so the three command fields can stay empty (Nixpacks reads
+the file). If you prefer to fill them in, use:
+
+| Field | Value |
+|---|---|
+| Install | `corepack enable && corepack prepare pnpm@11.20.0 --activate && pnpm install --frozen-lockfile` |
+| Build | `pnpm build` |
+| Start | `pnpm start` |
+| Nix packages | `nodejs_22` |
+
+Set the environment variables from `.env.example` in the service (at least `RPC_SOLANAMAINNET`).
+Port: 3000.
+
+### Docker
+
 Docker (EasyPanel, Coolify, any container host):
 
 ```bash
