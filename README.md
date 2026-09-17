@@ -10,6 +10,7 @@ It answers three questions at a glance:
 | **Relayer** | Are transfers being delivered? | Recent dispatches on each origin chain are looked up on the destination mailbox (`delivered` / processed PDA / `message_delivered`). A message still undelivered after `PENDING_WARN_MINUTES` turns the route yellow, after `PENDING_DOWN_MINUTES` red. Deliveries into Terra Classic are also read from the TC mailbox `process` events. |
 | **Operator balances** | Can the relayer still pay for gas? | Native balance of the relayer wallet on the 4 chains vs. `warn` / `critical` thresholds. |
 | **Validator checkpoints** | Are the validators that secure each route signing the latest checkpoints? | For each origin chain the validator set is read **on-chain** (multisig ISM of the warp routes on BSC/Ethereum for TC-origin messages; Terra Classic routing ISM for BSC/Ethereum/Solana-origin messages). Each validator's announced storage location (ValidatorAnnounce) is read on-chain and its `checkpoint_latest_index.json` is compared with the origin merkle tree count. A set is healthy when at least `threshold` validators are synced. |
+| **Interchain gas payments (IGP)** | What does one transfer cost in gas fees, and which contracts set it? | Per origin chain: IGP contract(s) and gas oracle read from the registry / warp deployments (TC: IGP + oracle routed per destination; BSC/ETH: the warp's post-dispatch hook and its IGP; Solana: IGP program, overhead + inner accounts decoded from the warp token). Fee quoted on-chain (`quote_gas_payment`, `quoteDispatch`, IGP `QuoteGasPayment` simulation) with the oracle's gas price / exchange rate, shown in native token and USD (Binance spot prices). |
 | **Operator agents** (optional) | What do the relayer/validator processes themselves report? | Prometheus metrics of your own agents (`RELAYER_METRICS_URL`, `VALIDATOR_METRICS_URL`). Hidden when not configured. |
 
 Everything is public data: the [Terra Classic Hyperlane registry](https://github.com/terra-classic-hyperlane/hyperlane-registry)
@@ -19,7 +20,7 @@ No contract address or validator list is hardcoded.
 ## Endpoints
 
 - `/` — dashboard (auto-refreshes every 30 s)
-- `/api/status` — full JSON snapshot (CORS enabled, cached `SNAPSHOT_TTL_SECONDS`)
+- `/api/status` — full JSON snapshot incl. USD prices (CORS enabled, cached `SNAPSHOT_TTL_SECONDS`)
 - `/api/health` — `200` when healthy/degraded, `503` when something is down (for uptime monitors)
 
 ## Run locally

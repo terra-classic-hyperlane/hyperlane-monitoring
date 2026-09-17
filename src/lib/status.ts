@@ -2,6 +2,8 @@ import { operatorBalances } from './balances';
 import { cached, errMsg, peek } from './cache';
 import { OPERATOR_ADDRESSES, SNAPSHOT_TTL_SECONDS } from './config';
 import { agentMetrics } from './metrics';
+import { igpStatuses } from './igp';
+import { usdPrices } from './prices';
 import { getChains } from './registry';
 import { relayerHealth, routeStatuses } from './relayer';
 import type { AgentMetricsSummary, Health, StatusSnapshot } from './types';
@@ -18,12 +20,16 @@ async function buildSnapshot(): Promise<StatusSnapshot> {
   const started = Date.now();
   const errors: string[] = [];
   const chains = await getChains();
-  const [routes, balances, validators, agents] = await Promise.all([
+  const prices = await usdPrices().catch((e) => {
+    errors.push(`prices: ${errMsg(e)}`);
+    return {} as Record<string, number>;
+  });
+  const [routes, balances, validators, igp, agents] = await Promise.all([
     routeStatuses(chains).catch((e) => {
       errors.push(`relayer: ${errMsg(e)}`);
       return [];
     }),
-    operatorBalances(chains).catch((e) => {
+    operatorBalances(chains, prices).catch((e) => {
       errors.push(`balances: ${errMsg(e)}`);
       return [];
     }),
@@ -31,11 +37,16 @@ async function buildSnapshot(): Promise<StatusSnapshot> {
       errors.push(`validators: ${errMsg(e)}`);
       return [];
     }),
+    igpStatuses(chains, prices).catch((e) => {
+      errors.push(`igp: ${errMsg(e)}`);
+      return [];
+    }),
     agentMetrics().catch((e): AgentMetricsSummary => ({ configured: true, reachable: false, error: errMsg(e) })),
   ]);
   for (const r of routes) if (r.error) errors.push(`${r.originDisplayName} → ${r.destinationDisplayName}: ${r.error}`);
   for (const b of balances) if (b.error) errors.push(`${b.displayName} balance: ${b.error}`);
   for (const v of validators) if (v.error) errors.push(`${v.originDisplayName} validators: ${v.error}`);
+  for (const g of igp) if (g.error) errors.push(`${g.displayName} IGP: ${g.error}`);
 
   const relayer = relayerHealth(routes);
   const balanceHealth = worst(...balances.map((b) => b.health));
@@ -53,8 +64,17 @@ async function buildSnapshot(): Promise<StatusSnapshot> {
     relayer: { health: relayer, operator: OPERATOR_ADDRESSES, routes },
     balances,
     validators,
+    igp,
+    prices,
     agents,
-    chains: Object.values(chains).map((c) => ({ name: c.name, displayName: c.displayName, domainId: c.domainId, protocol: c.protocol, explorerUrl: c.explorerUrl, mailbox: c.mailbox })),
+    chains: Object.values(chains).map((c) => ({
+      name: c.name,
+      displayName: c.displayName,
+      domainId: c.domainId,
+      protocol: c.protocol,
+      explorerUrl: c.explorerUrl,
+      mailbox: c.mailbox,
+    })),
     errors,
   };
 }

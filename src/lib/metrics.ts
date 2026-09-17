@@ -51,7 +51,12 @@ export async function agentMetrics(): Promise<AgentMetricsSummary> {
         criticalErrors: Object.fromEntries(by('hyperlane_critical_error').map((x) => [x.labels.chain, x.value])),
         queueLengths: by('hyperlane_submitter_queue_length')
           .filter((x) => x.value > 0)
-          .map((x) => ({ queue: x.labels.queue_name, remote: x.labels.remote, status: x.labels.operation_status, length: x.value })),
+          .map((x) => ({
+            queue: x.labels.queue_name,
+            remote: x.labels.remote,
+            status: x.labels.operation_status,
+            length: x.value,
+          })),
         processedByRoute: by('hyperlane_messages_processed_count')
           .filter((x) => x.value > 0)
           .map((x) => ({ origin: x.labels.origin, remote: x.labels.remote, count: x.value })),

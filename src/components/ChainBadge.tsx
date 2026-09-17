@@ -13,7 +13,13 @@ export function ChainBadge({ chain, name, size = 'md' }: { chain: ChainName; nam
   const s = STYLE[chain] ?? { bg: 'bg-slate-400 text-black', short: chain.slice(0, 3).toUpperCase() };
   return (
     <span className="inline-flex items-center gap-2">
-      <span className={clsx('inline-flex items-center justify-center rounded-full font-bold', s.bg, size === 'sm' ? 'h-5 w-9 text-[10px]' : 'h-6 w-11 text-[11px]')}>
+      <span
+        className={clsx(
+          'inline-flex items-center justify-center rounded-full font-bold',
+          s.bg,
+          size === 'sm' ? 'h-5 w-9 text-[10px]' : 'h-6 w-11 text-[11px]',
+        )}
+      >
         {s.short}
       </span>
       {name && <span className={clsx('font-medium', size === 'sm' && 'text-sm')}>{name}</span>}

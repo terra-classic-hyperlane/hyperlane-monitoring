@@ -16,6 +16,7 @@ export interface ChainInfo {
   mailbox: string;
   validatorAnnounce: string;
   merkleTreeHook: string;
+  interchainGasPaymaster: string;
   bech32Prefix?: string;
 }
 
@@ -24,6 +25,7 @@ export interface BalanceStatus {
   displayName: string;
   address: string;
   balance: number | null;
+  balanceUsd: number | null;
   symbol: string;
   warnBelow: number;
   criticalBelow: number;
@@ -35,6 +37,7 @@ export interface BalanceStatus {
 export interface ValidatorStatus {
   address: string;
   name: string;
+  inSet: boolean; // enrolled in the ISM (counts for the threshold); false = announced only
   storageLocation: string | null;
   latestIndex: number | null;
   lastCheckpointAt: number | null; // epoch ms
@@ -47,6 +50,7 @@ export interface ValidatorSetStatus {
   origin: ChainName;
   originDisplayName: string;
   ismDescription: string; // where the set was read from
+  isms: Array<{ chain: ChainName; chainDisplayName: string; address: string; explorerUrl?: string; note?: string }>;
   threshold: number;
   chainCount: number | null; // merkle tree count on origin
   validators: ValidatorStatus[];
@@ -76,6 +80,29 @@ export interface RouteStatus {
   oldestPendingMinutes: number | null;
   health: Health;
   note?: string;
+  error?: string;
+}
+
+export interface IgpQuote {
+  destination: ChainName;
+  destinationDisplayName: string;
+  gasAmount: number; // destination gas used for the quote
+  gasPrice: string | null; // oracle: destination gas price (raw units)
+  exchangeRate: string | null; // oracle: token exchange rate (raw, scale 1e10 on CosmWasm, 1e19 on EVM/Solana)
+  oracle: string | null; // oracle contract / account
+  quote: number | null; // in origin native token
+  quoteSymbol: string;
+  quoteUsd: number | null;
+  note?: string;
+  error?: string;
+}
+
+export interface IgpStatus {
+  chain: ChainName; // origin chain where the fee is paid
+  displayName: string;
+  contracts: Array<{ role: string; address: string; explorerUrl?: string; note?: string }>;
+  quotes: IgpQuote[];
+  health: Health;
   error?: string;
 }
 
@@ -112,6 +139,8 @@ export interface StatusSnapshot {
   };
   balances: BalanceStatus[];
   validators: ValidatorSetStatus[];
+  igp: IgpStatus[];
+  prices: Record<string, number>; // USD spot prices (Binance)
   agents: AgentMetricsSummary;
   chains: Array<Pick<ChainInfo, 'name' | 'displayName' | 'domainId' | 'protocol' | 'explorerUrl' | 'mailbox'>>;
   errors: string[];

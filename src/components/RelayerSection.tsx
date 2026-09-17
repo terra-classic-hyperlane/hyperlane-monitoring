@@ -9,7 +9,13 @@ import type { RouteStatus, StatusSnapshot } from '@/lib/types';
 import { ChainBadge } from './ChainBadge';
 import { Card, SectionTitle, Stat, StatusPill, TimeAgo } from './ui';
 
-function RouteCard({ route, explorerByChain }: { route: RouteStatus; explorerByChain: Record<string, string | undefined> }) {
+function RouteCard({
+  route,
+  explorerByChain,
+}: {
+  route: RouteStatus;
+  explorerByChain: Record<string, string | undefined>;
+}) {
   const originExplorer = explorerByChain[route.origin];
   return (
     <Card accent={route.health} className="flex flex-col gap-4">
@@ -58,7 +64,12 @@ function RouteCard({ route, explorerByChain }: { route: RouteStatus; explorerByC
                   <span className="text-unknown">unknown</span>
                 )}
                 {originExplorer && (
-                  <a href={`${originExplorer.replace(/\/$/, '')}/tx/${m.originTx}`} target="_blank" rel="noreferrer" className="text-muted hover:text-fg">
+                  <a
+                    href={`${originExplorer.replace(/\/$/, '')}/tx/${m.originTx}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted hover:text-fg"
+                  >
                     tx
                   </a>
                 )}

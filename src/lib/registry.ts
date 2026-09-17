@@ -27,6 +27,7 @@ interface RawAddresses {
   mailbox: string;
   validatorAnnounce: string;
   merkleTreeHook: string;
+  interchainGasPaymaster?: string;
 }
 
 export async function getChain(name: ChainName): Promise<ChainInfo> {
@@ -51,6 +52,7 @@ export async function getChain(name: ChainName): Promise<ChainInfo> {
       mailbox: a.mailbox,
       validatorAnnounce: a.validatorAnnounce,
       merkleTreeHook: a.merkleTreeHook,
+      interchainGasPaymaster: a.interchainGasPaymaster ?? '',
       bech32Prefix: m.bech32Prefix,
     };
   });
@@ -72,12 +74,10 @@ export interface WarpDeployment {
 // (on EVM) and the Solana programs whose dispatches we watch.
 export async function getTcWarpDeployments(): Promise<WarpDeployment[]> {
   return cached('warp:deployments', TTL, async () => {
-    const combined = await fetchYaml<Record<string, { tokens?: Array<{ chainName: string; addressOrDenom?: string; symbol?: string }> }>>(
-      'deployments/warp_routes/warpRouteConfigs.yaml',
-    );
-    const ids = Object.keys(combined).filter((id) =>
-      combined[id].tokens?.some((t) => t.chainName === 'terraclassic'),
-    );
+    const combined = await fetchYaml<
+      Record<string, { tokens?: Array<{ chainName: string; addressOrDenom?: string; symbol?: string }> }>
+    >('deployments/warp_routes/warpRouteConfigs.yaml');
+    const ids = Object.keys(combined).filter((id) => combined[id].tokens?.some((t) => t.chainName === 'terraclassic'));
     const out: WarpDeployment[] = [];
     for (const id of ids) {
       const [symbol, chainsPart] = id.split('/');
@@ -86,7 +86,9 @@ export async function getTcWarpDeployments(): Promise<WarpDeployment[]> {
       // Deploy files are named with the chain names sorted alphabetically.
       const fileChains = chainsPart.split('-').sort().join('-');
       try {
-        const deploy = await fetchYaml<WarpDeployment['chains']>(`deployments/warp_routes/${symbol}/${fileChains}-deploy.yaml`);
+        const deploy = await fetchYaml<WarpDeployment['chains']>(
+          `deployments/warp_routes/${symbol}/${fileChains}-deploy.yaml`,
+        );
         out.push({ routeId: id, symbol, chains: deploy, tokens });
       } catch {
         // deploy file may not exist for every route: keep token addresses only

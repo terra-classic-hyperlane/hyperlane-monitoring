@@ -6,7 +6,10 @@ import { explorerAddressUrl } from './registry';
 import { solBalance } from './solana';
 import type { BalanceStatus, ChainInfo, ChainName, Health } from './types';
 
-export async function operatorBalances(chains: Record<ChainName, ChainInfo>): Promise<BalanceStatus[]> {
+export async function operatorBalances(
+  chains: Record<ChainName, ChainInfo>,
+  prices: Record<string, number> = {},
+): Promise<BalanceStatus[]> {
   const thresholds = balanceThresholds();
   return Promise.all(
     ALL_CHAINS.map(async (name): Promise<BalanceStatus> => {
@@ -18,6 +21,7 @@ export async function operatorBalances(chains: Record<ChainName, ChainInfo>): Pr
         displayName: chain.displayName,
         address,
         balance: null,
+        balanceUsd: null,
         symbol: chain.nativeSymbol,
         warnBelow: t.warn,
         criticalBelow: t.critical,
@@ -26,12 +30,21 @@ export async function operatorBalances(chains: Record<ChainName, ChainInfo>): Pr
       };
       try {
         const fetcher =
-          chain.protocol === 'cosmos' ? nativeBalance(chain, address) : chain.protocol === 'ethereum' ? evmBalance(chain, address) : solBalance(chain, address);
+          chain.protocol === 'cosmos'
+            ? nativeBalance(chain, address)
+            : chain.protocol === 'ethereum'
+              ? evmBalance(chain, address)
+              : solBalance(chain, address);
         const balance = await withTimeout(fetcher, 20_000, `${name} balance`);
         let health: Health = 'ok';
         if (balance < t.critical) health = 'down';
         else if (balance < t.warn) health = 'warn';
-        return { ...base, balance, health };
+        return {
+          ...base,
+          balance,
+          balanceUsd: prices[chain.nativeSymbol] ? balance * prices[chain.nativeSymbol] : null,
+          health,
+        };
       } catch (e) {
         return { ...base, error: errMsg(e) };
       }

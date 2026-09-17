@@ -9,6 +9,8 @@ import { ChainBadge } from './ChainBadge';
 import { Address, Card, HEALTH_COLOR, HealthDot, SectionTitle, StatusPill, TimeAgo } from './ui';
 
 function SetCard({ set, explorerUrl }: { set: ValidatorSetStatus; explorerUrl?: string }) {
+  const members = set.validators.filter((v) => v.inSet);
+  const announcedOnly = set.validators.length - members.length;
   return (
     <Card accent={set.health} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -18,15 +20,31 @@ function SetCard({ set, explorerUrl }: { set: ValidatorSetStatus; explorerUrl?: 
         </div>
         <StatusPill
           health={set.health}
-          label={set.validators.length ? `${set.syncedCount}/${set.validators.length} synced · need ${set.threshold}` : undefined}
+          label={members.length ? `${set.syncedCount}/${members.length} synced · need ${set.threshold}` : undefined}
         />
       </div>
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
         <span>
-          Merkle tree count: <span className="mono text-fg">{set.chainCount === null ? '—' : fmtNum(set.chainCount, 0)}</span>
+          Merkle tree count:{' '}
+          <span className="mono text-fg">{set.chainCount === null ? '—' : fmtNum(set.chainCount, 0)}</span>
         </span>
-        <span title={set.ismDescription}>Threshold {set.threshold}-of-{set.validators.length}</span>
+        <span title={set.ismDescription}>
+          Threshold {set.threshold}-of-{members.length}
+        </span>
+        {announcedOnly > 0 && <span>{announcedOnly} announced but not in the ISM</span>}
       </div>
+      {set.isms.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <span className="uppercase tracking-wider text-muted">ISM</span>
+          {set.isms.map((i) => (
+            <span key={`${i.chain}-${i.address}`} className="inline-flex items-center gap-1.5">
+              <span className="text-muted">{i.chainDisplayName}:</span>
+              <Address value={i.address} href={i.explorerUrl} chars={6} />
+              {i.note && <span className="text-muted/70">({i.note})</span>}
+            </span>
+          ))}
+        </div>
+      )}
       {set.error ? (
         <p className="text-xs text-down">{set.error}</p>
       ) : (
@@ -45,18 +63,45 @@ function SetCard({ set, explorerUrl }: { set: ValidatorSetStatus; explorerUrl?: 
               {set.validators.map((v) => (
                 <tr key={v.address}>
                   <td className="py-1.5 pr-2">
-                    <div className="font-medium">{v.name}</div>
-                    <Address value={v.address} href={explorerUrl ? `${explorerUrl.replace(/\/$/, '')}/address/${v.address}` : undefined} chars={5} />
+                    <div className="flex items-center gap-1.5 font-medium">
+                      {v.name}
+                      {!v.inSet && (
+                        <span
+                          className="rounded border border-white/15 px-1 text-[10px] font-normal text-muted"
+                          title="Announced on the ValidatorAnnounce contract, but not enrolled in the ISM: does not count for the threshold"
+                        >
+                          announced only
+                        </span>
+                      )}
+                    </div>
+                    <Address
+                      value={v.address}
+                      href={explorerUrl ? `${explorerUrl.replace(/\/$/, '')}/address/${v.address}` : undefined}
+                      chars={5}
+                    />
                   </td>
                   <td className="mono py-1.5 pr-2">{v.latestIndex === null ? '—' : fmtNum(v.latestIndex, 0)}</td>
-                  <td className={clsx('mono py-1.5 pr-2', v.lag !== null && v.lag > 1 && HEALTH_COLOR[v.health])}>{v.lag === null ? '—' : v.lag}</td>
+                  <td className={clsx('mono py-1.5 pr-2', v.lag !== null && v.lag > 1 && HEALTH_COLOR[v.health])}>
+                    {v.lag === null ? '—' : v.lag}
+                  </td>
                   <td className="py-1.5 pr-2 text-muted">
                     <TimeAgo ts={v.lastCheckpointAt} />
                   </td>
                   <td className="py-1.5">
-                    <span className={clsx('inline-flex items-center gap-1.5', HEALTH_COLOR[v.health])} title={v.error ?? v.storageLocation ?? undefined}>
+                    <span
+                      className={clsx('inline-flex items-center gap-1.5', HEALTH_COLOR[v.health])}
+                      title={v.error ?? v.storageLocation ?? undefined}
+                    >
                       <HealthDot health={v.health} size={7} />
-                      {v.health === 'ok' ? 'synced' : v.health === 'warn' ? 'behind' : v.health === 'down' ? (v.error ? 'unreachable' : 'stale') : 'unknown'}
+                      {v.health === 'ok'
+                        ? 'synced'
+                        : v.health === 'warn'
+                          ? 'behind'
+                          : v.health === 'down'
+                            ? v.error
+                              ? 'unreachable'
+                              : 'stale'
+                            : 'unknown'}
                     </span>
                   </td>
                 </tr>
@@ -69,7 +114,15 @@ function SetCard({ set, explorerUrl }: { set: ValidatorSetStatus; explorerUrl?: 
   );
 }
 
-export function ValidatorsSection({ sets, overall, explorers }: { sets: ValidatorSetStatus[]; overall: Health; explorers: Record<string, string | undefined> }) {
+export function ValidatorsSection({
+  sets,
+  overall,
+  explorers,
+}: {
+  sets: ValidatorSetStatus[];
+  overall: Health;
+  explorers: Record<string, string | undefined>;
+}) {
   return (
     <div>
       <SectionTitle

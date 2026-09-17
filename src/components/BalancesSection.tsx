@@ -28,14 +28,35 @@ export function BalancesSection({ balances, overall }: { balances: BalanceStatus
           <Card key={b.chain} accent={b.health} className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <ChainBadge chain={b.chain} name={b.displayName} size="sm" />
-              <StatusPill health={b.health} label={b.health === 'down' ? 'Low' : b.health === 'warn' ? 'Refill soon' : b.health === 'ok' ? 'Funded' : 'Unknown'} />
+              <StatusPill
+                health={b.health}
+                label={
+                  b.health === 'down'
+                    ? 'Low'
+                    : b.health === 'warn'
+                      ? 'Refill soon'
+                      : b.health === 'ok'
+                        ? 'Funded'
+                        : 'Unknown'
+                }
+              />
             </div>
             <div>
-              <div className={clsx('mono text-2xl font-semibold', b.health === 'down' && 'text-down', b.health === 'warn' && 'text-warn')}>
+              <div
+                className={clsx(
+                  'mono text-2xl font-semibold',
+                  b.health === 'down' && 'text-down',
+                  b.health === 'warn' && 'text-warn',
+                )}
+              >
                 {b.balance === null ? '—' : fmtNum(b.balance)} <span className="text-sm text-muted">{b.symbol}</span>
               </div>
+              {b.balanceUsd !== null && <div className="mono text-sm text-muted">≈ ${fmtNum(b.balanceUsd, 2)}</div>}
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/8">
-                <div className={clsx('h-full rounded-full transition-all', BAR[b.health])} style={{ width: `${pct(b)}%` }} />
+                <div
+                  className={clsx('h-full rounded-full transition-all', BAR[b.health])}
+                  style={{ width: `${pct(b)}%` }}
+                />
               </div>
               <div className="mt-1 flex justify-between text-[11px] text-muted">
                 <span>alert &lt; {fmtNum(b.criticalBelow)}</span>

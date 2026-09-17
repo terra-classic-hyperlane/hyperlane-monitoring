@@ -13,7 +13,7 @@ function connections(chain: ChainInfo): Connection[] {
 }
 
 // Try each RPC in order (private first when configured).
-async function withRpc<T>(chain: ChainInfo, fn: (c: Connection) => Promise<T>): Promise<T> {
+export async function withRpc<T>(chain: ChainInfo, fn: (c: Connection) => Promise<T>): Promise<T> {
   let lastErr: unknown;
   for (const c of connections(chain)) {
     try {
@@ -63,7 +63,10 @@ export async function solMerkleCount(chain: ChainInfo): Promise<number> {
 export async function solStorageLocations(chain: ChainInfo, validators: string[]): Promise<Record<string, string[]>> {
   return withRpc(chain, async (c) => {
     const keys = validators.map((v) =>
-      pda(['hyperlane_validator_announce', '-', 'storage_locations', '-', Buffer.from(strip0x(v), 'hex')], chain.validatorAnnounce),
+      pda(
+        ['hyperlane_validator_announce', '-', 'storage_locations', '-', Buffer.from(strip0x(v), 'hex')],
+        chain.validatorAnnounce,
+      ),
     );
     const infos = await c.getMultipleAccountsInfo(keys);
     const out: Record<string, string[]> = {};
@@ -119,7 +122,13 @@ export async function solRecentDispatches(
         for (const line of tx?.meta?.logMessages ?? []) {
           const m = DISPATCH_RE.exec(line);
           if (m && Number(m[1]) === destinationDomain) {
-            out.push({ signature: s.signature, slot: s.slot, timestamp: s.blockTime ? s.blockTime * 1000 : null, msgId: m[2].toLowerCase(), destination: destinationDomain });
+            out.push({
+              signature: s.signature,
+              slot: s.slot,
+              timestamp: s.blockTime ? s.blockTime * 1000 : null,
+              msgId: m[2].toLowerCase(),
+              destination: destinationDomain,
+            });
           }
         }
       }

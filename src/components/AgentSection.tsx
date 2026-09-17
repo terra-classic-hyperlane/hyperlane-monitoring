@@ -9,7 +9,13 @@ export function AgentSection({ agents }: { agents: AgentMetricsSummary }) {
   const r = agents.relayer;
   const v = agents.validator;
   const criticals = r ? Object.entries(r.criticalErrors).filter(([, n]) => n > 0) : [];
-  const health = !agents.reachable ? 'unknown' : criticals.length || (v && v.criticalErrors > 0) ? 'down' : r?.queueLengths.length ? 'warn' : 'ok';
+  const health = !agents.reachable
+    ? 'unknown'
+    : criticals.length || (v && v.criticalErrors > 0)
+      ? 'down'
+      : r?.queueLengths.length
+        ? 'warn'
+        : 'ok';
   return (
     <div>
       <SectionTitle
@@ -26,7 +32,11 @@ export function AgentSection({ agents }: { agents: AgentMetricsSummary }) {
                 <Stat key={chain} label={`${chain} sync`} value={`${age}s ago`} health={age > 600 ? 'warn' : 'ok'} />
               ))}
             </div>
-            {criticals.length > 0 && <p className="text-xs text-down">Critical errors: {criticals.map(([c, n]) => `${c} (${n})`).join(', ')}</p>}
+            {criticals.length > 0 && (
+              <p className="text-xs text-down">
+                Critical errors: {criticals.map(([c, n]) => `${c} (${n})`).join(', ')}
+              </p>
+            )}
             {r.queueLengths.length > 0 ? (
               <ul className="text-xs text-warn">
                 {r.queueLengths.map((q, i) => (
@@ -40,7 +50,8 @@ export function AgentSection({ agents }: { agents: AgentMetricsSummary }) {
             )}
             {r.processedByRoute.length > 0 && (
               <p className="text-xs text-muted">
-                Processed since restart: {r.processedByRoute.map((p) => `${p.origin}→${p.remote} ${p.count}`).join(' · ')}
+                Processed since restart:{' '}
+                {r.processedByRoute.map((p) => `${p.origin}→${p.remote} ${p.count}`).join(' · ')}
               </p>
             )}
           </Card>
@@ -52,7 +63,11 @@ export function AgentSection({ agents }: { agents: AgentMetricsSummary }) {
               <Stat label="Announced" value={v.announced ? 'yes' : 'no'} health={v.announced ? 'ok' : 'down'} />
               <Stat label="Observed" value={v.latestObserved ?? '—'} />
               <Stat label="Signed" value={v.latestProcessed ?? '—'} />
-              <Stat label="Sync" value={v.livenessAgeSec === null ? '—' : `${v.livenessAgeSec}s ago`} health={v.livenessAgeSec !== null && v.livenessAgeSec > 600 ? 'warn' : 'ok'} />
+              <Stat
+                label="Sync"
+                value={v.livenessAgeSec === null ? '—' : `${v.livenessAgeSec}s ago`}
+                health={v.livenessAgeSec !== null && v.livenessAgeSec > 600 ? 'warn' : 'ok'}
+              />
             </div>
             {v.criticalErrors > 0 && <p className="text-xs text-down">Critical errors: {v.criticalErrors}</p>}
           </Card>

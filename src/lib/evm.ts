@@ -30,7 +30,10 @@ const DISPATCH_EVENT = parseAbiItem(
 );
 const DISPATCH_ID_EVENT = parseAbiItem('event DispatchId(bytes32 indexed messageId)');
 
-export async function evmIsmValidators(chain: ChainInfo, ism: `0x${string}`): Promise<{ validators: string[]; threshold: number }> {
+export async function evmIsmValidators(
+  chain: ChainInfo,
+  ism: `0x${string}`,
+): Promise<{ validators: string[]; threshold: number }> {
   const [validators, threshold] = await evmClient(chain).readContract({
     address: ism,
     abi: ABI,
@@ -110,21 +113,36 @@ export async function evmRecentDispatches(
           fromBlock: BigInt(start),
           toBlock: BigInt(to),
         }),
-        client.getLogs({ address: chain.mailbox as `0x${string}`, event: DISPATCH_ID_EVENT, fromBlock: BigInt(start), toBlock: BigInt(to) }),
+        client.getLogs({
+          address: chain.mailbox as `0x${string}`,
+          event: DISPATCH_ID_EVENT,
+          fromBlock: BigInt(start),
+          toBlock: BigInt(to),
+        }),
       ]);
       const idByTx = new Map<string, string>();
-      for (const l of idLogs) if (l.transactionHash && l.args.messageId) idByTx.set(`${l.transactionHash}:${l.logIndex}`, l.args.messageId);
+      for (const l of idLogs)
+        if (l.transactionHash && l.args.messageId) idByTx.set(`${l.transactionHash}:${l.logIndex}`, l.args.messageId);
       const out: EvmDispatch[] = [];
       for (const l of logs) {
         // DispatchId is the log right after Dispatch in the same tx
         const id = l.transactionHash ? idByTx.get(`${l.transactionHash}:${(l.logIndex ?? 0) + 1}`) : undefined;
         if (!id || !l.transactionHash) continue;
-        out.push({ txhash: l.transactionHash, blockNumber: Number(l.blockNumber), timestamp: null, msgId: id.toLowerCase(), destination: destinationDomain });
+        out.push({
+          txhash: l.transactionHash,
+          blockNumber: Number(l.blockNumber),
+          timestamp: null,
+          msgId: id.toLowerCase(),
+          destination: destinationDomain,
+        });
       }
       return out;
     }),
   );
-  const found = perRange.flat().sort((a, b) => b.blockNumber - a.blockNumber).slice(0, limit);
+  const found = perRange
+    .flat()
+    .sort((a, b) => b.blockNumber - a.blockNumber)
+    .slice(0, limit);
   const blockCache = new Map<number, number>();
   await Promise.all(
     [...new Set(found.map((d) => d.blockNumber))].map(async (bn) => {
@@ -139,4 +157,3 @@ export async function evmRecentDispatches(
   for (const d of found) d.timestamp = blockCache.get(d.blockNumber) || null;
   return found;
 }
-

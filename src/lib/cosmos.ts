@@ -73,6 +73,13 @@ export async function messageDelivered(chain: ChainInfo, msgId: string): Promise
   return r.delivered;
 }
 
+export async function announcedValidators(chain: ChainInfo): Promise<string[]> {
+  const r = await smartQuery<{ validators: string[] }>(chain, contractAddr(chain, chain.validatorAnnounce), {
+    get_announced_validators: {},
+  });
+  return r.validators.map((v) => strip0x(v).toLowerCase());
+}
+
 export async function announcedStorageLocations(
   chain: ChainInfo,
   validators: string[], // hex, no 0x
@@ -134,7 +141,14 @@ export interface MailboxActivity {
 export async function recentMailboxActivity(chain: ChainInfo, limit = 40): Promise<MailboxActivity> {
   const mailbox = contractAddr(chain, chain.mailbox);
   const filter = encodeURIComponent(`execute._contract_address='${mailbox}'`);
-  let data: { tx_responses?: Array<{ txhash: string; height: string; timestamp: string; logs?: Array<{ events: Array<{ type: string; attributes: Array<{ key: string; value: string }> }> }> }> } | null = null;
+  let data: {
+    tx_responses?: Array<{
+      txhash: string;
+      height: string;
+      timestamp: string;
+      logs?: Array<{ events: Array<{ type: string; attributes: Array<{ key: string; value: string }> }> }>;
+    }>;
+  } | null = null;
   let lastErr: unknown;
   for (const param of ['query', 'events']) {
     try {
@@ -147,7 +161,8 @@ export async function recentMailboxActivity(chain: ChainInfo, limit = 40): Promi
   if (!data?.tx_responses) throw lastErr instanceof Error ? lastErr : new Error('tx search failed');
   const dispatches: CosmosDispatch[] = [];
   const processes: CosmosProcess[] = [];
-  const attrsOf = (e: { attributes: Array<{ key: string; value: string }> }) => Object.fromEntries(e.attributes.map((a) => [a.key, a.value]));
+  const attrsOf = (e: { attributes: Array<{ key: string; value: string }> }) =>
+    Object.fromEntries(e.attributes.map((a) => [a.key, a.value]));
   for (const tx of data.tx_responses) {
     const events = (tx.logs ?? []).flatMap((l) => l.events);
     const timestamp = new Date(tx.timestamp).getTime();
@@ -159,7 +174,14 @@ export async function recentMailboxActivity(chain: ChainInfo, limit = 40): Promi
       if (attrs['message'] && msgId) {
         try {
           const parsed = parseMessage(attrs['message']);
-          dispatches.push({ txhash: tx.txhash, height: Number(tx.height), timestamp, msgId: `0x${strip0x(msgId).toLowerCase()}`, destination: parsed.destination, nonce: parsed.nonce });
+          dispatches.push({
+            txhash: tx.txhash,
+            height: Number(tx.height),
+            timestamp,
+            msgId: `0x${strip0x(msgId).toLowerCase()}`,
+            destination: parsed.destination,
+            nonce: parsed.nonce,
+          });
         } catch {
           // ignore unparsable
         }
@@ -171,7 +193,14 @@ export async function recentMailboxActivity(chain: ChainInfo, limit = 40): Promi
       const attrs = attrsOf(process);
       const msgId = attrsOf(processId)['message_id'];
       const origin = Number(attrs['origin']);
-      if (msgId && Number.isFinite(origin)) processes.push({ txhash: tx.txhash, height: Number(tx.height), timestamp, msgId: `0x${strip0x(msgId).toLowerCase()}`, origin });
+      if (msgId && Number.isFinite(origin))
+        processes.push({
+          txhash: tx.txhash,
+          height: Number(tx.height),
+          timestamp,
+          msgId: `0x${strip0x(msgId).toLowerCase()}`,
+          origin,
+        });
     }
   }
   return { dispatches, processes };

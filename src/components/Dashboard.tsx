@@ -9,6 +9,7 @@ import type { Health, StatusSnapshot } from '@/lib/types';
 
 import { AgentSection } from './AgentSection';
 import { BalancesSection } from './BalancesSection';
+import { IgpSection } from './IgpSection';
 import { RelayerSection } from './RelayerSection';
 import { Card, HEALTH_LABEL, HealthDot, Skeleton, StatusPill, TimeAgo } from './ui';
 import { ValidatorsSection } from './ValidatorsSection';
@@ -45,7 +46,12 @@ export function Dashboard() {
 }
 
 function DashboardInner() {
-  const { data: snapshot, error: queryError, isFetching, refetch } = useQuery({
+  const {
+    data: snapshot,
+    error: queryError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ['status'],
     queryFn: fetchStatus,
     refetchInterval: REFRESH_MS,
@@ -58,6 +64,7 @@ function DashboardInner() {
 
   const balancesHealth = snapshot ? worst(...snapshot.balances.map((b) => b.health)) : 'unknown';
   const validatorsHealth = snapshot ? worst(...snapshot.validators.map((v) => v.health)) : 'unknown';
+  const igpHealth = snapshot ? worst(...snapshot.igp.map((g) => g.health)) : 'unknown';
   const explorers = snapshot ? Object.fromEntries(snapshot.chains.map((c) => [c.name, c.explorerUrl])) : {};
 
   return (
@@ -99,7 +106,8 @@ function DashboardInner() {
             <div>
               <div className="text-lg font-semibold">{HEADLINE[snapshot.overall]}</div>
               <div className="text-sm text-muted">
-                Updated <TimeAgo ts={snapshot.generatedAt} /> · checked in {(snapshot.durationMs / 1000).toFixed(1)}s · auto-refresh every 30s
+                Updated <TimeAgo ts={snapshot.generatedAt} /> · checked in {(snapshot.durationMs / 1000).toFixed(1)}s ·
+                auto-refresh every 30s
               </div>
             </div>
           </div>
@@ -119,7 +127,9 @@ function DashboardInner() {
           <RefreshCw size={16} className="animate-spin text-muted" />
           <div>
             <div className="font-medium">Checking the bridge…</div>
-            <div className="text-sm text-muted">Reading 4 chains, validator buckets and recent transfers. First load can take up to a minute.</div>
+            <div className="text-sm text-muted">
+              Reading 4 chains, validator buckets and recent transfers. First load can take up to a minute.
+            </div>
           </div>
         </Card>
       )}
@@ -129,6 +139,7 @@ function DashboardInner() {
           <RelayerSection snapshot={snapshot} />
           <BalancesSection balances={snapshot.balances} overall={balancesHealth} />
           <ValidatorsSection sets={snapshot.validators} overall={validatorsHealth} explorers={explorers} />
+          <IgpSection igp={snapshot.igp} overall={igpHealth} prices={snapshot.prices} />
           <AgentSection agents={snapshot.agents} />
           {snapshot.errors.length > 0 && (
             <details className="text-xs text-muted">
@@ -150,11 +161,19 @@ function DashboardInner() {
       )}
 
       <footer className="mt-auto border-t border-card-border pt-4 text-xs text-muted">
-        Data is read live from Terra Classic, BSC, Ethereum and Solana public RPCs, the validators&apos; public checkpoint buckets and the{' '}
+        Data is read live from Terra Classic, BSC, Ethereum and Solana public RPCs, the validators&apos; public
+        checkpoint buckets and the{' '}
         <a href={SITE.registryUrl} target="_blank" rel="noreferrer" className="underline hover:text-fg">
           Terra Classic Hyperlane registry
         </a>
-        . Machine-readable: <a href="/api/status" className="underline hover:text-fg">/api/status</a> · <a href="/api/health" className="underline hover:text-fg">/api/health</a>
+        . Machine-readable:{' '}
+        <a href="/api/status" className="underline hover:text-fg">
+          /api/status
+        </a>{' '}
+        ·{' '}
+        <a href="/api/health" className="underline hover:text-fg">
+          /api/health
+        </a>
       </footer>
     </main>
   );

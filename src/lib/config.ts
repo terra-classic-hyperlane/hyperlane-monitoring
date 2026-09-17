@@ -6,8 +6,7 @@ import type { ChainName } from './types';
 // Only operator identity, thresholds and optional private endpoints live here.
 // ---------------------------------------------------------------------------
 
-export const REGISTRY_URL =
-  process.env.REGISTRY_URL || 'https://github.com/terra-classic-hyperlane/hyperlane-registry';
+export const REGISTRY_URL = process.env.REGISTRY_URL || 'https://github.com/terra-classic-hyperlane/hyperlane-registry';
 export const REGISTRY_BRANCH = process.env.REGISTRY_BRANCH || 'public-warp';
 
 export const HUB_CHAIN: ChainName = 'terraclassic';
@@ -78,7 +77,7 @@ export const SNAPSHOT_TTL_SECONDS = Number(process.env.SNAPSHOT_TTL_SECONDS || 4
 export const KNOWN_VALIDATORS: Record<string, string> = {
   '71b2b8c36a0c76b74be92eb7915e26a69b3b03eb': 'Igor Veras',
   '1afd3d07abd2aaa19a9f7993f334a926e253b90c': 'TCV',
-  'e6bb040164a0ebbcb7e2d584f066c8b57dd74383': 'DarkSun',
+  e6bb040164a0ebbcb7e2d584f066c8b57dd74383: 'DarkSun',
   '5c374754892ebac52702475726b67f822efdfacc': 'BurnItAll',
   '0c737caf34a1b8ae4a285c5e94726de6d9b7e028': 'LuncGoblins',
 };

@@ -24,7 +24,11 @@ export const HEALTH_COLOR: Record<Health, string> = {
 export function HealthDot({ health, live = false, size = 10 }: { health: Health; live?: boolean; size?: number }) {
   return (
     <span
-      className={clsx('inline-block shrink-0 rounded-full bg-current', HEALTH_COLOR[health], live && health === 'ok' && 'dot-live')}
+      className={clsx(
+        'inline-block shrink-0 rounded-full bg-current',
+        HEALTH_COLOR[health],
+        live && health === 'ok' && 'dot-live',
+      )}
       style={{ width: size, height: size }}
       aria-hidden
     />
@@ -39,7 +43,14 @@ export function StatusPill({ health, label, className }: { health: Health; label
     unknown: 'bg-unknown/12 border-unknown/30',
   }[health];
   return (
-    <span className={clsx('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium', bg, HEALTH_COLOR[health], className)}>
+    <span
+      className={clsx(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+        bg,
+        HEALTH_COLOR[health],
+        className,
+      )}
+    >
       <HealthDot health={health} size={7} />
       {label ?? HEALTH_LABEL[health]}
     </span>
@@ -87,7 +98,13 @@ export function Address({ value, href, chars = 6 }: { value: string; href?: stri
         {copied ? <Check size={13} className="text-ok" /> : <Copy size={13} />}
       </button>
       {href && (
-        <a href={href} target="_blank" rel="noreferrer" className="text-muted hover:text-fg" aria-label="Open in explorer">
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="text-muted hover:text-fg"
+          aria-label="Open in explorer"
+        >
           <ExternalLink size={13} />
         </a>
       )}
@@ -112,7 +129,17 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={clsx('skeleton', className)} />;
 }
 
-export function Stat({ label, value, sub, health }: { label: string; value: ReactNode; sub?: ReactNode; health?: Health }) {
+export function Stat({
+  label,
+  value,
+  sub,
+  health,
+}: {
+  label: string;
+  value: ReactNode;
+  sub?: ReactNode;
+  health?: Health;
+}) {
   return (
     <div className="min-w-0">
       <div className="text-[11px] uppercase tracking-wider text-muted">{label}</div>

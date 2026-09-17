@@ -1,9 +1,10 @@
 import { errMsg, withTimeout } from './cache';
 import { HUB_CHAIN, KNOWN_VALIDATORS, REMOTE_CHAINS, VALIDATOR_LAG_TOLERANCE, VALIDATOR_STALE_MINUTES } from './config';
 import { fetchLatestCheckpoint } from './checkpoints';
-import { announcedStorageLocations, defaultIsm, merkleCount, routedValidatorSet } from './cosmos';
+import { announcedStorageLocations, announcedValidators, defaultIsm, merkleCount, routedValidatorSet } from './cosmos';
 import { evmIsmValidators, evmMerkleCount, evmStorageLocations, evmTokenIsm } from './evm';
-import { getTcWarpDeployments } from './registry';
+import { explorerAddressUrl, getTcWarpDeployments } from './registry';
+import { contractAddr } from './cosmos';
 import { solMerkleCount, solStorageLocations } from './solana';
 import type { ChainInfo, ChainName, Health, ValidatorSetStatus, ValidatorStatus } from './types';
 
@@ -13,7 +14,8 @@ function nameFor(addr: string, location: string | null): string {
   const m = location ? /^(?:s3|gs):\/\/([^/]+)/.exec(location) : null;
   if (m) {
     const bucket = m[1];
-    if (/^hyperlane-mainnet3-/.test(bucket)) return `Hyperlane (${bucket.replace(/^hyperlane-mainnet3-/, '').replace(/-validator-/, ' #')})`;
+    if (/^hyperlane-mainnet3-/.test(bucket))
+      return `Hyperlane (${bucket.replace(/^hyperlane-mainnet3-/, '').replace(/-validator-/, ' #')})`;
     return bucket.replace(/^hyperlane-validator-signatures-/, '').replace(/-validator$/, '');
   }
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
@@ -23,6 +25,7 @@ async function validatorStatuses(
   validators: string[],
   locations: Record<string, string[]>,
   chainCount: number | null,
+  inSet: (v: string) => boolean = () => true,
 ): Promise<ValidatorStatus[]> {
   return Promise.all(
     validators.map(async (v) => {
@@ -31,6 +34,7 @@ async function validatorStatuses(
       const base: ValidatorStatus = {
         address: `0x${v}`,
         name: nameFor(v, location),
+        inSet: inSet(v),
         storageLocation: location,
         latestIndex: null,
         lastCheckpointAt: null,
@@ -56,11 +60,13 @@ async function validatorStatuses(
   );
 }
 
+// Only validators enrolled in the ISM count for the threshold; announced-only ones are informative.
 function setHealth(validators: ValidatorStatus[], threshold: number): { health: Health; syncedCount: number } {
-  const syncedCount = validators.filter((v) => v.health === 'ok').length;
-  const reachable = validators.filter((v) => v.health !== 'unknown').length;
+  const members = validators.filter((v) => v.inSet);
+  const syncedCount = members.filter((v) => v.health === 'ok').length;
+  const reachable = members.filter((v) => v.health !== 'unknown').length;
   if (!reachable) return { health: 'unknown', syncedCount };
-  if (syncedCount >= threshold) return { health: syncedCount === validators.length ? 'ok' : 'warn', syncedCount };
+  if (syncedCount >= threshold) return { health: syncedCount === members.length ? 'ok' : 'warn', syncedCount };
   return { health: 'down', syncedCount };
 }
 
@@ -72,6 +78,7 @@ export async function tcOriginValidatorSet(chains: Record<ChainName, ChainInfo>)
     origin: HUB_CHAIN,
     originDisplayName: tc.displayName,
     ismDescription: '',
+    isms: [],
     threshold: 0,
     chainCount: null,
     validators: [],
@@ -82,28 +89,51 @@ export async function tcOriginValidatorSet(chains: Record<ChainName, ChainInfo>)
     const deployments = await getTcWarpDeployments();
     let set: { validators: string[]; threshold: number } | null = null;
     let desc = '';
+    const isms: ValidatorSetStatus['isms'] = [];
     for (const evm of ['bsc', 'ethereum'] as ChainName[]) {
-      let ism = deployments.map((d) => d.chains[evm]?.interchainSecurityModule).find(Boolean) as `0x${string}` | undefined;
+      let ism = deployments.map((d) => d.chains[evm]?.interchainSecurityModule).find(Boolean) as
+        `0x${string}` | undefined;
       try {
         if (!ism) {
           const token = deployments.map((d) => d.tokens[evm]).find(Boolean);
           if (token) ism = await evmTokenIsm(chains[evm], token as `0x${string}`);
         }
         if (!ism) continue;
-        set = await evmIsmValidators(chains[evm], ism);
-        desc = `Multisig ISM ${ism.slice(0, 8)}… on ${chains[evm].displayName} (warp routes)`;
-        break;
+        isms.push({
+          chain: evm,
+          chainDisplayName: chains[evm].displayName,
+          address: ism,
+          explorerUrl: explorerAddressUrl(chains[evm], ism),
+          note: 'warp routes',
+        });
+        if (!set) {
+          set = await evmIsmValidators(chains[evm], ism);
+          desc = `Multisig ISM ${ism.slice(0, 8)}… on ${chains[evm].displayName} (warp routes)`;
+        }
       } catch {
         // try next chain
       }
     }
     if (!set) throw new Error('could not read the TC-origin ISM on BSC/Ethereum');
+    // Everyone announced on the Terra Classic ValidatorAnnounce contract is listed; the ISM
+    // members come first and are the only ones that count for the threshold.
+    const announced = await announcedValidators(tc).catch(() => [] as string[]);
+    const members = new Set(set.validators);
+    const all = [...set.validators, ...announced.filter((v) => !members.has(v))];
     const [count, locations] = await Promise.all([
       merkleCount(tc).catch(() => null),
-      announcedStorageLocations(tc, set.validators),
+      announcedStorageLocations(tc, all),
     ]);
-    const validators = await validatorStatuses(set.validators, locations, count);
-    return { ...base, ismDescription: desc, threshold: set.threshold, chainCount: count, validators, ...setHealth(validators, set.threshold) };
+    const validators = await validatorStatuses(all, locations, count, (v) => members.has(v));
+    return {
+      ...base,
+      ismDescription: desc,
+      isms,
+      threshold: set.threshold,
+      chainCount: count,
+      validators,
+      ...setHealth(validators, set.threshold),
+    };
   } catch (e) {
     return { ...base, health: 'unknown', error: errMsg(e) };
   }
@@ -111,13 +141,17 @@ export async function tcOriginValidatorSet(chains: Record<ChainName, ChainInfo>)
 
 // Remote chain as ORIGIN: the set is enrolled in Terra Classic's routing ISM for that domain.
 // Announcements + checkpoints are read from the origin chain.
-export async function remoteOriginValidatorSet(chains: Record<ChainName, ChainInfo>, origin: ChainName): Promise<ValidatorSetStatus> {
+export async function remoteOriginValidatorSet(
+  chains: Record<ChainName, ChainInfo>,
+  origin: ChainName,
+): Promise<ValidatorSetStatus> {
   const tc = chains[HUB_CHAIN];
   const oc = chains[origin];
   const base: ValidatorSetStatus = {
     origin,
     originDisplayName: oc.displayName,
     ismDescription: '',
+    isms: [],
     threshold: 0,
     chainCount: null,
     validators: [],
@@ -135,6 +169,15 @@ export async function remoteOriginValidatorSet(chains: Record<ChainName, ChainIn
     return {
       ...base,
       ismDescription: `Multisig ISM ${set.ism.slice(0, 12)}… on Terra Classic (routing ISM, domain ${oc.domainId})`,
+      isms: [
+        {
+          chain: HUB_CHAIN,
+          chainDisplayName: tc.displayName,
+          address: set.ism,
+          explorerUrl: explorerAddressUrl(tc, set.ism),
+          note: `routed by ${contractAddr(tc, routing).slice(0, 12)}…`,
+        },
+      ],
       threshold: set.threshold,
       chainCount: count,
       validators,
