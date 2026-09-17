@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Terra Classic Bridge Monitor
 
-## Getting Started
+Public, real-time health dashboard for the **Terra Classic Hyperlane bridge**
+(Terra Classic ↔ BSC · Ethereum · Solana). Built with Next.js 16, React 19 and Tailwind 4.
 
-First, run the development server:
+It answers three questions at a glance:
+
+| Section | Question | How it is measured |
+|---|---|---|
+| **Relayer** | Are transfers being delivered? | Recent dispatches on each origin chain are looked up on the destination mailbox (`delivered` / processed PDA / `message_delivered`). A message still undelivered after `PENDING_WARN_MINUTES` turns the route yellow, after `PENDING_DOWN_MINUTES` red. Deliveries into Terra Classic are also read from the TC mailbox `process` events. |
+| **Operator balances** | Can the relayer still pay for gas? | Native balance of the relayer wallet on the 4 chains vs. `warn` / `critical` thresholds. |
+| **Validator checkpoints** | Are the validators that secure each route signing the latest checkpoints? | For each origin chain the validator set is read **on-chain** (multisig ISM of the warp routes on BSC/Ethereum for TC-origin messages; Terra Classic routing ISM for BSC/Ethereum/Solana-origin messages). Each validator's announced storage location (ValidatorAnnounce) is read on-chain and its `checkpoint_latest_index.json` is compared with the origin merkle tree count. A set is healthy when at least `threshold` validators are synced. |
+| **Operator agents** (optional) | What do the relayer/validator processes themselves report? | Prometheus metrics of your own agents (`RELAYER_METRICS_URL`, `VALIDATOR_METRICS_URL`). Hidden when not configured. |
+
+Everything is public data: the [Terra Classic Hyperlane registry](https://github.com/terra-classic-hyperlane/hyperlane-registry)
+(branch `public-warp`), public RPC/LCD endpoints and the validators' public checkpoint buckets.
+No contract address or validator list is hardcoded.
+
+## Endpoints
+
+- `/` — dashboard (auto-refreshes every 30 s)
+- `/api/status` — full JSON snapshot (CORS enabled, cached `SNAPSHOT_TTL_SECONDS`)
+- `/api/health` — `200` when healthy/degraded, `503` when something is down (for uptime monitors)
+
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+cp .env.example .env.local   # optional, everything has defaults
+pnpm dev                     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`pnpm typecheck`, `pnpm lint`, `pnpm build`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Configuration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+All variables are optional — see `.env.example`. The ones that matter in production:
 
-## Learn More
+- `RPC_SOLANAMAINNET`, `RPC_BSC`, `RPC_ETHEREUM` — private RPCs (server-side only). Public
+  RPCs rate-limit the scans; the dashboard then shows partial data with a note.
+- `OPERATOR_*` — relayer wallets to watch (defaults: Terra Classic community relayer).
+- `BALANCE_THRESHOLDS` — JSON with `warn` / `critical` per chain.
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Docker (EasyPanel, Coolify, any container host):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+docker build -t tc-monitoring-hyperlane .
+docker run -p 3000:3000 --env-file .env tc-monitoring-hyperlane
+```
 
-## Deploy on Vercel
+The image uses Next.js standalone output; one instance keeps one shared snapshot in memory.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Operator agents (optional)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Hyperlane agents expose Prometheus metrics (relayer `:9091/metrics`, validator `:9090/metrics`)
+on localhost of the operator machine. To feed them into the dashboard without exposing the
+ports publicly, put them behind nginx with basic auth on the VPS:
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name metrics.example.com;
+  # ssl_certificate ...; ssl_certificate_key ...;
+  auth_basic "metrics";
+  auth_basic_user_file /etc/nginx/.htpasswd;   # htpasswd -c /etc/nginx/.htpasswd monitor
+  location /relayer/metrics   { proxy_pass http://127.0.0.1:9091/metrics; }
+  location /validator/metrics { proxy_pass http://127.0.0.1:9090/metrics; }
+}
+```
+
+Then set:
+
+```
+RELAYER_METRICS_URL=https://metrics.example.com/relayer/metrics
+VALIDATOR_METRICS_URL=https://metrics.example.com/validator/metrics
+METRICS_AUTH_HEADER=Basic <base64 user:pass>
+```
+
+The dashboard shows submission queue backlog, critical errors, sync liveness per chain and the
+validator's announced / signed checkpoint. Only the server reads these URLs.
+
+## How the checks work (details)
+
+- **Terra Classic** (CosmWasm): LCD smart queries — `mailbox.message_delivered`, `merkle_hook.count`,
+  `get_announce_storage_locations`, `routing_ism.route` → `multisig_ism.enrolled_validators`;
+  tx search on the mailbox contract for `wasm-mailbox_dispatch(_id)` and `wasm-mailbox_process(_id)`.
+- **BSC / Ethereum** (viem): `delivered(bytes32)`, `MerkleTreeHook.count()`,
+  `ValidatorAnnounce.getAnnouncedStorageLocations`, `Multisig ISM.validatorsAndThreshold`,
+  `Dispatch` logs filtered by destination domain (chunked, parallel).
+- **Solana** (@solana/web3.js): processed-message PDA, outbox account (merkle count),
+  validator-announce PDAs, dispatch logs of the TC warp programs.
+- **Checkpoints**: `s3://bucket/region[/prefix]` → `https://bucket.s3.region.amazonaws.com/.../checkpoint_latest_index.json`
+  (`Last-Modified` is used as the checkpoint time).
