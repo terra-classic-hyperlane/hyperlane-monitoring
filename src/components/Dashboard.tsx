@@ -87,6 +87,9 @@ function DashboardInner() {
           <a href={SITE.explorerUrl} target="_blank" rel="noreferrer" className="hover:text-fg">
             Explorer
           </a>
+          <a href={SITE.docsUrl} target="_blank" rel="noreferrer" className="hover:text-fg">
+            Docs
+          </a>
           <a href="/api/status" target="_blank" rel="noreferrer" className="hover:text-fg">
             API
           </a>

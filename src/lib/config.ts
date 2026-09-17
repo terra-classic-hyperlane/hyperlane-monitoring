@@ -96,5 +96,6 @@ export const SITE = {
     'Live health of the Terra Classic Hyperlane bridge: relayer, operator balances and validator checkpoints across Terra Classic, BSC, Ethereum and Solana.',
   bridgeUrl: 'https://bridge.terra-classic.io',
   explorerUrl: 'https://explorer.terraclassic-bridge.xyz',
+  docsUrl: 'https://github.com/terra-classic-hyperlane/docs',
   registryUrl: REGISTRY_URL,
 };
