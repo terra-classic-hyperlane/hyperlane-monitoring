@@ -171,6 +171,10 @@ function DashboardInner() {
         <a href={SITE.registryUrl} target="_blank" rel="noreferrer" className="underline hover:text-fg">
           Terra Classic Hyperlane registry
         </a>
+        . Documentation:{' '}
+        <a href={SITE.docsUrl} target="_blank" rel="noreferrer" className="underline hover:text-fg">
+          terra-classic-hyperlane/docs
+        </a>
         . Machine-readable:{' '}
         <a href="/api/status" className="underline hover:text-fg">
           /api/status
