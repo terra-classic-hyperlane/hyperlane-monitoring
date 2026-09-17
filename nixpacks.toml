@@ -1,16 +1,25 @@
-# EasyPanel / Nixpacks build. Node 22 + the pnpm pinned in package.json (via corepack).
+# EasyPanel / Nixpacks build.
+# The automatic Node provider tries to install pnpm from nixpkgs (a package name that does
+# not exist for pnpm 11 lockfiles), so providers are disabled and every phase is explicit:
+# Node 22 from Nix, pnpm pinned in package.json via corepack.
+providers = []
+
 [phases.setup]
 nixPkgs = ["nodejs_22"]
 
 [phases.install]
+dependsOn = ["setup"]
 cmds = [
   "corepack enable",
   "corepack prepare pnpm@11.20.0 --activate",
   "pnpm install --frozen-lockfile",
 ]
+cacheDirectories = ["/root/.local/share/pnpm/store", "/root/.cache/node/corepack"]
 
 [phases.build]
+dependsOn = ["install"]
 cmds = ["pnpm build"]
+cacheDirectories = [".next/cache"]
 
 [start]
 cmd = "pnpm start"
@@ -18,3 +27,4 @@ cmd = "pnpm start"
 [variables]
 NEXT_TELEMETRY_DISABLED = "1"
 NODE_ENV = "production"
+CI = "true"
