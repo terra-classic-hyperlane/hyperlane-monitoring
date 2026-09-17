@@ -327,7 +327,13 @@ async function solIgp(chains: Record<ChainName, ChainInfo>, prices: Record<strin
           o.bytes(8); // discriminator "OVRHDIGP"
           o.u8(); // bump
           o.bytes(32);
-          o.option(() => o.pubkey());
+          const ovOwner = o.option(() => o.pubkey());
+          if (ovOwner)
+            base.contracts.push({
+              role: 'Overhead IGP owner',
+              address: ovOwner.toBase58(),
+              explorerUrl: explorerAddressUrl(sol, ovOwner.toBase58()),
+            });
           igpAccount = o.pubkey();
           const n = o.u32();
           for (let i = 0; i < n; i++) {
@@ -360,8 +366,20 @@ async function solIgp(chains: Record<ChainName, ChainInfo>, prices: Record<strin
         g.bytes(8); // discriminator
         g.u8(); // bump
         g.bytes(32);
-        g.option(() => g.pubkey());
-        g.pubkey(); // beneficiary
+        const igpOwner = g.option(() => g.pubkey());
+        const igpBeneficiary = g.pubkey();
+        base.contracts.push({
+          role: 'Beneficiary',
+          address: igpBeneficiary.toBase58(),
+          explorerUrl: explorerAddressUrl(sol, igpBeneficiary.toBase58()),
+          note: 'receives the gas payments',
+        });
+        if (igpOwner)
+          base.contracts.push({
+            role: 'IGP owner',
+            address: igpOwner.toBase58(),
+            explorerUrl: explorerAddressUrl(sol, igpOwner.toBase58()),
+          });
         const n = g.u32();
         for (let i = 0; i < n; i++) {
           const dom = g.u32();

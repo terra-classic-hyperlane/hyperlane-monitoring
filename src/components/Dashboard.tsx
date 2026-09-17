@@ -9,6 +9,7 @@ import type { Health, StatusSnapshot } from '@/lib/types';
 
 import { AgentSection } from './AgentSection';
 import { BalancesSection } from './BalancesSection';
+import { ContractsSection } from './ContractsSection';
 import { IgpSection } from './IgpSection';
 import { RelayerSection } from './RelayerSection';
 import { Card, HEALTH_LABEL, HealthDot, Skeleton, StatusPill, TimeAgo } from './ui';
@@ -140,6 +141,7 @@ function DashboardInner() {
           <BalancesSection balances={snapshot.balances} overall={balancesHealth} />
           <ValidatorsSection sets={snapshot.validators} overall={validatorsHealth} explorers={explorers} />
           <IgpSection igp={snapshot.igp} overall={igpHealth} prices={snapshot.prices} />
+          <ContractsSection contracts={snapshot.contracts} names={Object.fromEntries(snapshot.chains.map((c) => [c.name, c.displayName]))} />
           <AgentSection agents={snapshot.agents} />
           {snapshot.errors.length > 0 && (
             <details className="text-xs text-muted">

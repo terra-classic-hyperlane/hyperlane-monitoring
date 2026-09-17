@@ -106,6 +106,17 @@ export interface IgpStatus {
   error?: string;
 }
 
+export interface ContractInfo {
+  chain: ChainName;
+  role: string;
+  address: string;
+  explorerUrl?: string;
+  owner: string | null; // on-chain owner (Ownable / account owner)
+  admin: string | null; // CosmWasm contract admin / EVM proxy admin / Solana upgrade authority
+  adminLabel: 'contract admin' | 'proxy admin' | 'upgrade authority' | null;
+  note?: string;
+}
+
 export interface AgentMetricsSummary {
   configured: boolean;
   reachable: boolean;
@@ -140,6 +151,7 @@ export interface StatusSnapshot {
   balances: BalanceStatus[];
   validators: ValidatorSetStatus[];
   igp: IgpStatus[];
+  contracts: ContractInfo[];
   prices: Record<string, number>; // USD spot prices (Binance)
   agents: AgentMetricsSummary;
   chains: Array<Pick<ChainInfo, 'name' | 'displayName' | 'domainId' | 'protocol' | 'explorerUrl' | 'mailbox'>>;

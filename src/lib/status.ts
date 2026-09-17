@@ -2,6 +2,7 @@ import { operatorBalances } from './balances';
 import { cached, errMsg, peek } from './cache';
 import { OPERATOR_ADDRESSES, SNAPSHOT_TTL_SECONDS } from './config';
 import { agentMetrics } from './metrics';
+import { contractInventory } from './contracts';
 import { igpStatuses } from './igp';
 import { usdPrices } from './prices';
 import { getChains } from './registry';
@@ -24,7 +25,7 @@ async function buildSnapshot(): Promise<StatusSnapshot> {
     errors.push(`prices: ${errMsg(e)}`);
     return {} as Record<string, number>;
   });
-  const [routes, balances, validators, igp, agents] = await Promise.all([
+  const [routes, balances, validators, igp, inventory, agents] = await Promise.all([
     routeStatuses(chains).catch((e) => {
       errors.push(`relayer: ${errMsg(e)}`);
       return [];
@@ -41,12 +42,17 @@ async function buildSnapshot(): Promise<StatusSnapshot> {
       errors.push(`igp: ${errMsg(e)}`);
       return [];
     }),
+    contractInventory(chains).catch((e) => {
+      errors.push(`contracts: ${errMsg(e)}`);
+      return { contracts: [], errors: [] as string[] };
+    }),
     agentMetrics().catch((e): AgentMetricsSummary => ({ configured: true, reachable: false, error: errMsg(e) })),
   ]);
   for (const r of routes) if (r.error) errors.push(`${r.originDisplayName} → ${r.destinationDisplayName}: ${r.error}`);
   for (const b of balances) if (b.error) errors.push(`${b.displayName} balance: ${b.error}`);
   for (const v of validators) if (v.error) errors.push(`${v.originDisplayName} validators: ${v.error}`);
   for (const g of igp) if (g.error) errors.push(`${g.displayName} IGP: ${g.error}`);
+  errors.push(...inventory.errors);
 
   const relayer = relayerHealth(routes);
   const balanceHealth = worst(...balances.map((b) => b.health));
@@ -65,6 +71,7 @@ async function buildSnapshot(): Promise<StatusSnapshot> {
     balances,
     validators,
     igp,
+    contracts: inventory.contracts,
     prices,
     agents,
     chains: Object.values(chains).map((c) => ({
