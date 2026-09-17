@@ -7,7 +7,7 @@ const conns = new Map<string, Connection[]>();
 function connections(chain: ChainInfo): Connection[] {
   const hit = conns.get(chain.name);
   if (hit) return hit;
-  const list = chain.rpcUrls.map((u) => new Connection(u, { commitment: 'confirmed', disableRetryOnRateLimit: true }));
+  const list = chain.rpcUrls.map((u) => new Connection(u, { commitment: 'confirmed' }));
   conns.set(chain.name, list);
   return list;
 }
@@ -105,6 +105,11 @@ export interface SolDispatch {
 
 const DISPATCH_RE = /Dispatched message to (\d+), ID (0x[0-9a-fA-F]{64})/;
 
+// Parsed dispatch logs per signature never change: cache them for the process lifetime so
+// each snapshot only fetches transactions it has not seen (public RPCs rate-limit hard).
+const txDispatchCache = new Map<string, Array<{ destination: number; msgId: string }>>();
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 // Recent dispatches made through the given warp programs (their txs invoke the mailbox).
 export async function solRecentDispatches(
   chain: ChainInfo,
@@ -118,15 +123,24 @@ export async function solRecentDispatches(
       const sigs = await c.getSignaturesForAddress(new PublicKey(p), { limit: perProgram });
       for (const s of sigs) {
         if (s.err) continue;
-        const tx = await c.getTransaction(s.signature, { maxSupportedTransactionVersion: 0 });
-        for (const line of tx?.meta?.logMessages ?? []) {
-          const m = DISPATCH_RE.exec(line);
-          if (m && Number(m[1]) === destinationDomain) {
+        let parsed = txDispatchCache.get(s.signature);
+        if (!parsed) {
+          const tx = await c.getTransaction(s.signature, { maxSupportedTransactionVersion: 0 });
+          parsed = [];
+          for (const line of tx?.meta?.logMessages ?? []) {
+            const m = DISPATCH_RE.exec(line);
+            if (m) parsed.push({ destination: Number(m[1]), msgId: m[2].toLowerCase() });
+          }
+          txDispatchCache.set(s.signature, parsed);
+          await sleep(120); // stay under public RPC rate limits
+        }
+        for (const d of parsed) {
+          if (d.destination === destinationDomain) {
             out.push({
               signature: s.signature,
               slot: s.slot,
               timestamp: s.blockTime ? s.blockTime * 1000 : null,
-              msgId: m[2].toLowerCase(),
+              msgId: d.msgId,
               destination: destinationDomain,
             });
           }

@@ -161,11 +161,16 @@ export async function routeStatuses(chains: Record<ChainName, ChainInfo>): Promi
     } catch (e) {
       // Origin scan failed (rate limit / RPC): still report what TC knows.
       const msg = errMsg(e);
-      const friendly = /429|Too many requests/i.test(msg)
-        ? `${oc.displayName} public RPC rate-limited the scan; deliveries are still tracked on Terra Classic`
-        : msg;
-      const partial = summarize(base, [], lastDeliveredFromDest, friendly);
-      return lastDeliveredFromDest ? partial : { ...partial, error: msg };
+      const rateLimited = /429|Too many requests|rate limit/i.test(msg);
+      const partial = summarize(
+        base,
+        [],
+        lastDeliveredFromDest,
+        rateLimited
+          ? `${oc.displayName} public RPC rate-limited the scan (configure a private RPC); deliveries are still tracked on Terra Classic`
+          : undefined,
+      );
+      return rateLimited ? partial : { ...partial, error: msg };
     }
   });
 
