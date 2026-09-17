@@ -35,12 +35,14 @@ async function tcIgp(chains: Record<ChainName, ChainInfo>, prices: Record<string
       smartQuery<{ gas: string }>(tc, igp, { igp: { default_gas: {} } }),
       smartQuery<{ beneficiary: string }>(tc, igp, { igp: { beneficiary: {} } }).catch(() => ({ beneficiary: '' })),
     ]);
-    base.contracts.push({
-      role: 'IGP',
-      address: igp,
-      explorerUrl: explorerAddressUrl(tc, igp),
-      note: beneficiary.beneficiary ? `beneficiary ${beneficiary.beneficiary.slice(0, 12)}…` : undefined,
-    });
+    base.contracts.push({ role: 'IGP', address: igp, explorerUrl: explorerAddressUrl(tc, igp) });
+    if (beneficiary.beneficiary)
+      base.contracts.push({
+        role: 'Beneficiary',
+        address: beneficiary.beneficiary,
+        explorerUrl: explorerAddressUrl(tc, beneficiary.beneficiary),
+        note: 'receives the gas payments',
+      });
     const oracles = new Set<string>();
     const quotes = await Promise.all(
       REMOTE_CHAINS.map(async (dest): Promise<IgpQuote> => {
@@ -151,15 +153,15 @@ async function evmIgp(
         client.readContract({ address: igp, abi: EVM_ABI, functionName: 'beneficiary' }).catch(() => null),
         client.readContract({ address: igp, abi: EVM_ABI, functionName: 'owner' }).catch(() => null),
       ]);
-      base.contracts.push({
-        role: 'IGP',
-        address: igp,
-        explorerUrl: explorerAddressUrl(oc, igp),
-        note:
-          [beneficiary && `beneficiary ${beneficiary.slice(0, 8)}…`, owner && `owner ${owner.slice(0, 8)}…`]
-            .filter(Boolean)
-            .join(', ') || undefined,
-      });
+      base.contracts.push({ role: 'IGP', address: igp, explorerUrl: explorerAddressUrl(oc, igp) });
+      if (beneficiary)
+        base.contracts.push({
+          role: 'Beneficiary',
+          address: beneficiary,
+          explorerUrl: explorerAddressUrl(oc, beneficiary),
+          note: 'receives the gas payments',
+        });
+      if (owner) base.contracts.push({ role: 'Owner', address: owner, explorerUrl: explorerAddressUrl(oc, owner) });
     }
     const q: IgpQuote = {
       destination: HUB_CHAIN,
