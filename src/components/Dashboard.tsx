@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { SITE } from '@/lib/config';
@@ -71,15 +72,19 @@ function DashboardInner() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-accent to-accent-2 text-black shadow-lg shadow-accent/30">
-            <span className="text-lg font-black">TC</span>
+        <Link href="/" className="group flex items-center gap-3" aria-label={SITE.title}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/tc-logo-mark.svg" alt="" className="h-12 w-12 transition-transform duration-300 group-hover:scale-105 sm:h-14 sm:w-14" />
+          <div className="flex flex-col leading-none">
+            <span className="text-2xl font-bold tracking-tight sm:text-[1.7rem]">
+              <span className="text-white">Terra </span>
+              <span className="bg-gradient-to-r from-[#5fe3ef] to-[#5b8bff] bg-clip-text text-transparent">Classic</span>
+            </span>
+            <span className="mt-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.32em] text-[#7fd6e6] sm:text-[0.7rem]">
+              Bridge Monitor
+            </span>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">{SITE.title}</h1>
-            <p className="text-sm text-muted">Hyperlane bridge · Terra Classic ↔ BSC · Ethereum · Solana</p>
-          </div>
-        </div>
+        </Link>
         <nav className="flex items-center gap-4 text-sm text-muted">
           <a href={SITE.bridgeUrl} target="_blank" rel="noreferrer" className="hover:text-fg">
             Bridge
